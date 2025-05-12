@@ -1,51 +1,50 @@
-// tests/db.mock.js
+const { create, get, list, edit } = require('../orders');
+const orderData = require('../data/order1.json');
+const productTestHelper = require('./test-utils/productTestHelper');
 
-/**
- * Mock data to be returned by our mock database queries.
- * This simulates the documents we'd typically get from MongoDB.
- */
-const mockProducts = [
-    { description: 'Product 1' },
-    { description: 'Product 2' }
-];
+describe('Orders Module', () => {
+    let createdOrder;
 
-/**
- * Mock Mongoose Query object.
- * This simulates Mongoose's chainable query interface.
- * For example, in real Mongoose you can do: Model.find().sort().skip().limit()
- * 
- * mockReturnThis() is used to make methods chainable by returning 'this'
- * exec() and then() both resolve with our mockProducts to simulate a DB response
- */
-const mockQuery = {
-    sort: jest.fn().mockReturnThis(),  // Returns 'this' to allow chaining
-    skip: jest.fn().mockReturnThis(),  // Returns 'this' to allow chaining
-    limit: jest.fn().mockReturnThis(), // Returns 'this' to allow chaining
-    exec: jest.fn().mockResolvedValue(mockProducts),  // Simulates DB query execution
-    then: function(resolve) { resolve(mockProducts) }  // Makes the query thenable (Promise-like)
-};
+    beforeAll(async () => {
+        await productTestHelper.setupTestData();
+        await productTestHelper.createTestOrders(5);
+        // Create an order for the get and edit tests
+        createdOrder = await create(orderData);
+    });
 
-/**
- * Mock Mongoose Model object.
- * This simulates the methods available on a Mongoose model (e.g., Product model).
- * The find() method returns our mockQuery to allow for method chaining.
- */
-const mockModel = {
-    find: jest.fn().mockReturnValue(mockQuery)
-};
+    afterAll(async () => {
+        await productTestHelper.cleanupTestData();
+    });
 
-/**
- * Mock DB object that simulates the mongoose db interface.
- * In real code, we use db.model('Product') to get the Product model.
- * Here, we return our mockModel whenever model() is called.
- */
-const mockDb = {
-    model: jest.fn().mockReturnValue(mockModel)
-};
+    describe('list', () => {
+        it('should list orders', async () => {
+            const orders = await list();
+            expect(orders.length).toBeGreaterThan(4);
+        });
+    });
 
-module.exports = {
-    mockDb,        
-    mockProducts, 
-    mockModel,     
-    mockQuery     
-};
+    describe('create', () => {
+        it('should create an order', async () => {
+            const newOrder = await create(orderData);
+            expect(newOrder).toBeDefined();
+            expect(newOrder.buyerEmail).toBe(orderData.buyerEmail);
+        });
+    });
+
+    describe('get', () => {
+        it('should get an order by id', async () => {
+            const order = await get(createdOrder._id);
+            expect(order).toBeDefined();
+            expect(order._id).toBe(createdOrder._id);
+        });
+    });
+
+    describe('edit', () => {
+        it('should edit an order', async () => {
+            const change = { status: 'COMPLETED' };
+            const editedOrder = await edit(createdOrder._id, change);
+            expect(editedOrder).toBeDefined();
+            expect(editedOrder.status).toBe(change.status);
+        });
+    });
+});

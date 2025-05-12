@@ -1,51 +1,44 @@
-// tests/db.mock.js
+const { mockDb, mockProducts, mockModel } = require('./db.mock');
+const { list, get, destroy } = require('../products');
+const productTestHelper = require('./test-utils/productTestHelper');
 
-/**
- * Mock data to be returned by our mock database queries.
- * This simulates the documents we'd typically get from MongoDB.
- */
-const mockProducts = [
-    { description: 'Product 1' },
-    { description: 'Product 2' }
-];
+jest.mock('../db', () => mockDb);
 
-/**
- * Mock Mongoose Query object.
- * This simulates Mongoose's chainable query interface.
- * For example, in real Mongoose you can do: Model.find().sort().skip().limit()
- * 
- * mockReturnThis() is used to make methods chainable by returning 'this'
- * exec() and then() both resolve with our mockProducts to simulate a DB response
- */
-const mockQuery = {
-    sort: jest.fn().mockReturnThis(),  // Returns 'this' to allow chaining
-    skip: jest.fn().mockReturnThis(),  // Returns 'this' to allow chaining
-    limit: jest.fn().mockReturnThis(), // Returns 'this' to allow chaining
-    exec: jest.fn().mockResolvedValue(mockProducts),  // Simulates DB query execution
-    then: function(resolve) { resolve(mockProducts) }  // Makes the query thenable (Promise-like)
-};
+describe('Product Module', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
 
-/**
- * Mock Mongoose Model object.
- * This simulates the methods available on a Mongoose model (e.g., Product model).
- * The find() method returns our mockQuery to allow for method chaining.
- */
-const mockModel = {
-    find: jest.fn().mockReturnValue(mockQuery)
-};
+    // Uncomment these if you need to set up or clean up test data
+    // beforeAll(async () => {
+    //     await productTestHelper.setupTestData();
+    // });
 
-/**
- * Mock DB object that simulates the mongoose db interface.
- * In real code, we use db.model('Product') to get the Product model.
- * Here, we return our mockModel whenever model() is called.
- */
-const mockDb = {
-    model: jest.fn().mockReturnValue(mockModel)
-};
+    // afterAll(async () => {
+    //     await productTestHelper.cleanupTestData();
+    // });
 
-module.exports = {
-    mockDb,        
-    mockProducts, 
-    mockModel,     
-    mockQuery     
-};
+    it('should list products', async () => {
+        const products = await list();
+
+        expect(products.length).toBe(2);
+        expect(products[0].description).toBe('Product 1');
+        expect(products[1].description).toBe('Product 2');
+    });
+
+    it('should get a product by id', async () => {
+        mockModel.findById = jest.fn().mockResolvedValue({ description: 'Product 1' });
+
+        const product = await get('1234');
+        expect(product.description).toBe('Product 1'); // corrected to match the mocked return
+        expect(mockModel.findById).toHaveBeenCalledWith('1234');
+    });
+
+    it('should delete a product by id', async () => {
+        mockModel.deleteOne = jest.fn().mockResolvedValue({ deletedCount: 1 });
+
+        const deletionResult = await destroy('1234');
+        expect(deletionResult.deletedCount).toBe(1);
+        expect(mockModel.deleteOne).toHaveBeenCalledWith({ _id: '1234' });
+    });
+});

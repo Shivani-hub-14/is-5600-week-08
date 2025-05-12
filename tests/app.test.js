@@ -28,6 +28,6 @@ describe('The Express Server', () => {
       const res = await request(app)
         .get('/products')
       expect(res.statusCode).toEqual(200);
-    });
-  });
+});
+});
 });
